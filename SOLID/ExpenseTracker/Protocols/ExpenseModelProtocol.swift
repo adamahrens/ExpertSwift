@@ -30,14 +30,13 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import SwiftUI
-import CoreData
+import Foundation
 
-@main
-struct AppMain: App {
-  var body: some Scene {
-    WindowGroup {
-      ContentView()
-    }
-  }
+
+protocol ExpenseModelProtocol {
+  var title: String? { get }
+  var price: Double { get }
+  var comment: String? { get }
+  var date: Date? { get }
+  var id: UUID? { get }
 }

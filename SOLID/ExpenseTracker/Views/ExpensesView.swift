@@ -31,91 +31,76 @@
 /// THE SOFTWARE.
 
 import SwiftUI
+import Combine
 
-struct AddExpenseView: View {
-  @Environment(\.presentationMode) var presentation
-  
-  
-  var saveHandler: SaveEntryProtocol
+struct ExpensesView: View {
+  @State private var isAddPresented = false
+  @ObservedObject var dataSource: ReportReader
 
-  @State var title: String = ""
-  @State var time = Date()
-  @State var comment: String = ""
-  @State var price: String = ""
-  @State var saveDisabled = true
-  
   var body: some View {
-    NavigationView {
-      VStack(alignment: .leading) {
-        Text("Title:")
-        TextField("Entry Title", text: $title)
-          .onChange(of: title) { _ in
-            validateNonEmptyFields()
-          }
-          .padding(.bottom)
-        Text("Amount:")
-        TextField("Expense Amount", text: $price)
-          .keyboardType(.numberPad)
-          .onChange(of: price) { _ in
-            validateNonEmptyFields()
-          }
-          .padding(.bottom)
-        DatePicker(
-          "Time:",
-          selection: $time,
-          displayedComponents: [.hourAndMinute])
-          .padding(.bottom)
-        Text("Comment:")
-        TextEditor(text: $comment)
+    VStack {
+      List {
+        ForEach(dataSource.currentEntries, id: \.id) { item in
+          ExpenseItemView(expenseItem: item)
+        }
       }
-      .padding(.all)
-      .navigationBarTitle("Add Expense", displayMode: .inline)
-      .navigationBarItems(
-        leading: Button(action: cancelEntry) {
-          Text("Cancel")
-        },
-        trailing: Button(action: saveEntry) {
-          Text("Save")
-        }.disabled(saveDisabled))
+      TotalView(totalExpense: dataSource.currentEntries.reduce(0) { $0 + $1.price })
     }
-  }
-
-  func saveEntry() {
-    guard let numericPrice = Double(price), numericPrice > 0 else {
-      return
+    .toolbar {
+      Button(action: {
+        isAddPresented.toggle()
+      }, label: {
+        Image(systemName: "plus")
+      })
     }
-
-    guard saveHandler.save(title: title, price: numericPrice, date: time, comment: comment) else {
-      print("Invalid Entry")
-      return
+    .fullScreenCover(
+      isPresented: $isAddPresented) { () -> AddExpenseView? in
+      guard
+        let saveHandler = dataSource as? SaveEntryProtocol
+      else { return nil }
+      
+      return AddExpenseView(saveHandler: saveHandler)
     }
-    
-    cancelEntry()
-  }
-
-  func cancelEntry() {
-    presentation.wrappedValue.dismiss()
-  }
-
-  func validateNonEmptyFields() {
-    guard Double(price) != nil else {
-      saveDisabled = true
-      return
+    .onAppear {
+      dataSource.prepare()
     }
-    saveDisabled = title.isEmpty
   }
 }
 
-struct AddExpenseView_Previews: PreviewProvider {
+struct ExpensesView_Previews: PreviewProvider {
   
-  class PreviewSaveHandler: SaveEntryProtocol {
+  struct PreviewExpenseEntry: ExpenseModelProtocol {
+    var title: String?
+    var price: Double
+    var comment: String?
+    var date: Date?
+    var id: UUID?
+  }
+  
+  class PreviewReportsDataSource: ReportReader, SaveEntryProtocol {
+    override init() {
+      super.init()
+      
+      for index in 0..<6 {
+        _ = save(title: "Test Title \(index)",
+                 price: Double(index + 1) * 12.3,
+                 date: Date(timeIntervalSinceNow: Double(index * 60)),
+                 comment: "Test Comment \(index)")
+      }
+    }
+    
+    override func prepare() {
+      
+    }
+    
     func save(title: String, price: Double, date: Date, comment: String) -> Bool {
-      // Do nothing
+      let entry = PreviewExpenseEntry(title: title, price: price, comment: comment, date: date, id: UUID())
+      currentEntries.append(entry)
       return true
     }
   }
   
   static var previews: some View {
-    AddExpenseView(saveHandler: PreviewSaveHandler())
+    ExpensesView(dataSource: PreviewReportsDataSource())
   }
 }

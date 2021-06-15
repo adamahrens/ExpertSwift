@@ -30,14 +30,26 @@
 /// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 /// THE SOFTWARE.
 
-import SwiftUI
 import CoreData
 
-@main
-struct AppMain: App {
-  var body: some Scene {
-    WindowGroup {
-      ContentView()
+struct PersistenceController {
+  
+  // Singleton
+  static let shared = PersistenceController()
+  
+  let container: NSPersistentContainer
+  
+  init(inMemory: Bool = false) {
+    container = NSPersistentContainer(name: "ExpensesModel")
+    
+    if inMemory {
+      container.persistentStoreDescriptions.first?.url = URL(fileURLWithPath: "/dev/null")
+    }
+    
+    container.loadPersistentStores { _, error in
+      if let error = error as NSError? {
+        fatalError("Unresolved error \(error), \(error.userInfo)")
+      }
     }
   }
 }
