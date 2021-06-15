@@ -41,6 +41,20 @@ enum HTTPMethod: String {
 }
 
 protocol Request {
+  associatedtype Output
   var url: URL { get }
   var method: HTTPMethod { get }
+  func decode(_ data: Data) throws -> Output
+}
+
+extension Request where Output: Decodable {
+  func decode(_ data: Data) throws -> Output {
+    return try JSONDecoder().decode(Output.self, from: data)
+  }
+}
+
+// Need this because we can't store protocol as a concrete type. We need type erasure
+struct AnyRequest: Hashable {
+  let url: URL
+  let method: HTTPMethod
 }

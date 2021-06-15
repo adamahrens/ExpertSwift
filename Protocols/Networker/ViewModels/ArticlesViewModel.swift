@@ -30,14 +30,22 @@ final class ArticlesViewModel: ObservableObject {
 //      .receive(on: DispatchQueue.main)
 //      .assign(to: \.articles, on: self)
 //      .store(in: &cancellables)
+  
+//    Before generics
+//    networker
+//      .fetch(request)
+//      .tryMap([Article].init) // Uses the protocol to decode to an array of articles
+//      .replaceError(with: [])
+//      .receive(on: DispatchQueue.main)
+//      .assign(to: \.articles, on: self)
+//      .store(in: &cancellables)
     
-    networker
-      .fetch(request)
-      .tryMap([Article].init) // Uses the protocol to decode to an array of articles
-      .replaceError(with: [])
-      .receive(on: DispatchQueue.main)
-      .assign(to: \.articles, on: self)
-      .store(in: &cancellables)
+      networker
+        .fetch(request)
+        .replaceError(with: [])
+        .receive(on: DispatchQueue.main)
+        .assign(to: \.articles, on: self)
+        .store(in: &cancellables)
   }
 
   func fetchImage(for article: Article) {
@@ -47,15 +55,35 @@ final class ArticlesViewModel: ObservableObject {
     else { return }
     
     let request = ImageRequest(url: article.image)
-    networker
-      .fetch(request)
-      .map(UIImage.init)
-      .receive(on: DispatchQueue.main)
-      .sink { _ in
-      } receiveValue: { [weak self] image in
-        self?.articles[articleIndex].downloadedImage = image
-      }
-      .store(in: &cancellables)
+    networker.fetchWithCache(request)
+      .sink(receiveCompletion: { error in
+        print(error)
+    }) { [weak self] image in
+      self?.articles[articleIndex].downloadedImage = image
+    }.store(in: &cancellables)
+    
+//    Before introducing caching
+//    let request = ImageRequest(url: article.image)
+//    networker.fetch(request).sink(receiveCompletion: { completion in
+//      switch completion {
+//        case .failure(let error): print(error)
+//        default: break
+//      }
+//    }) { [weak self] image in
+//      self?.articles[articleIndex].downloadedImage = image
+//    }.store(in: &cancellables)
+  
+//    Before generics
+//    let request = ImageRequest(url: article.image)
+//    networker
+//      .fetch(request)
+//      .map(UIImage.init)
+//      .receive(on: DispatchQueue.main)
+//      .sink { _ in
+//      } receiveValue: { [weak self] image in
+//        self?.articles[articleIndex].downloadedImage = image
+//      }
+//      .store(in: &cancellables)
   }
 }
 

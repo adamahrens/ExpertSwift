@@ -32,10 +32,14 @@
 
 import Combine
 import Foundation
+import UIKit
 
 protocol Networking {
   var delegate: NetworkingDelegate? { get set }
-  func fetch(_ request: Request) -> AnyPublisher<Data, URLError>
+//  func fetch(_ request: Request) -> AnyPublisher<Data, URLError>
+  func fetch<R: Request>(_ request: R) -> AnyPublisher<R.Output, Error>
+  
+  func fetchWithCache<R: Request>(_ request: R) -> AnyPublisher<R.Output, Error> where R.Output == UIImage
 }
 
 protocol NetworkingDelegate: AnyObject {
@@ -58,20 +62,52 @@ final class Networker: Networking {
   
   weak var delegate: NetworkingDelegate?
   
-  func fetch(_ request: Request) -> AnyPublisher<Data, URLError> {
+  private let imageCache = RequestCache<UIImage>()
+  
+  func fetch<R: Request>(_ request: R) -> AnyPublisher<R.Output, Error> {
     var urlRequest = URLRequest(url: request.url)
     urlRequest.httpMethod = request.method.rawValue
     urlRequest.allHTTPHeaderFields = delegate?.headers(for: self)
     
-    let publisher = URLSession.shared
+    var publisher = URLSession.shared
       .dataTaskPublisher(for: urlRequest)
       .compactMap { $0.data }
       .eraseToAnyPublisher()
     
     if let delegate = delegate {
-      return delegate.networking(self, transform: publisher)
-    } else {
-      return publisher
+      publisher = delegate.networking(self, transform: publisher)
     }
+    
+    return publisher.tryMap(request.decode).eraseToAnyPublisher()
   }
+  
+  func fetchWithCache<R: Request>(_ request: R) -> AnyPublisher<R.Output, Error> where R.Output == UIImage {
+    if let response = imageCache.response(for: request) {
+      return Just<R.Output>(response)
+        .setFailureType(to: Error.self)
+        .eraseToAnyPublisher()
+    }
+    
+    return fetch(request).handleEvents(receiveOutput: {
+      self.imageCache.save(response: $0, for: request)
+    }).eraseToAnyPublisher()
+  }
+  
+//  Before Generics
+//  func fetch(_ request: Request) -> AnyPublisher<Data, URLError> {
+//    var urlRequest = URLRequest(url: request.url)
+//    urlRequest.httpMethod = request.method.rawValue
+//    urlRequest.allHTTPHeaderFields = delegate?.headers(for: self)
+//
+//    let publisher = URLSession.shared
+//      .dataTaskPublisher(for: urlRequest)
+//      .compactMap { $0.data }
+//      .eraseToAnyPublisher()
+//
+//    if let delegate = delegate {
+//      return delegate.networking(self, transform: publisher)
+//    } else {
+//      return publisher
+//    }
+//  }
 }

@@ -31,21 +31,17 @@
 /// THE SOFTWARE.
 
 import Foundation
-import UIKit
 
-struct ImageRequest: Request {
-  let url: URL
-  var method: HTTPMethod { .get }
+final class RequestCache<Item> {
+  private var store = [AnyRequest : Item]()
   
-  enum Error: Swift.Error {
-    case invalidData
+  func response<R: Request>(for request: R) -> Item? {
+    let erasedRequest = AnyRequest(url: request.url, method: request.method)
+    return store[erasedRequest]
   }
   
-  func decode(_ data: Data) throws -> UIImage {
-    guard
-      let image = UIImage(data: data)
-    else { throw Error.invalidData }
-    
-    return image
+  func save<R: Request>(response: Item, for request: R) where R.Output == Item {
+    let erasedRequest = AnyRequest(url: request.url, method: request.method)
+    store[erasedRequest] = response
   }
 }

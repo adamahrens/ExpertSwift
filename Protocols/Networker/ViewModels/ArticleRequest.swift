@@ -40,4 +40,9 @@ struct ArticleRequest: Request {
   }
   
   var method: HTTPMethod { .get }
+  
+  func decode(_ data: Data) throws -> [Article] {
+    let collection = try JSONDecoder().decode(Articles.self, from: data)
+    return collection.data.map { $0.article }
+  }
 }
